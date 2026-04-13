@@ -157,33 +157,35 @@ static int heart_isqrt(int n) {
 }
 
 static void draw_heart_filled(GContext *ctx, int cx, int cy, int size) {
-  int r = size / 4;
-  int lcy = cy + r;  // y of lobe centers
+  // r = lobe radius, off = lobe center x-offset from cx
+  // Lobes close within ~3px of the top giving a clean dip
+  int r   = size / 3;
+  int off = size / 6;
+  int lcy = cy + r;       // y of lobe centers (= widest point)
+  int full_hw = off + r;  // half-width at lcy
 
-  // Upper region: two lobes with notch at top
-  // Uses fill color (via fill_rect) so callers just set fill color
-  for (int y = cy; y <= lcy + r; y++) {
+  // Upper region: two arcs from cy to lcy
+  for (int y = cy; y <= lcy; y++) {
     int dy = y - lcy;
     int sq = r * r - dy * dy;
     int hw = heart_isqrt(sq);
-    int xl_left  = cx - r - hw;
-    int xr_left  = cx - r + hw;
-    int xl_right = cx + r - hw;
-    int xr_right = cx + r + hw;
-    if (xr_left >= xl_right) {
-      graphics_fill_rect(ctx, GRect(xl_left, y, xr_right - xl_left + 1, 1), 0, GCornerNone);
+    int xl   = cx - off - hw;
+    int xr_l = cx - off + hw;
+    int xl_r = cx + off - hw;
+    int xr   = cx + off + hw;
+    if (xr_l >= xl_r) {
+      graphics_fill_rect(ctx, GRect(xl, y, xr - xl + 1, 1), 0, GCornerNone);
     } else {
-      graphics_fill_rect(ctx, GRect(xl_left,  y, xr_left  - xl_left  + 1, 1), 0, GCornerNone);
-      graphics_fill_rect(ctx, GRect(xl_right, y, xr_right - xl_right + 1, 1), 0, GCornerNone);
+      graphics_fill_rect(ctx, GRect(xl,   y, xr_l - xl   + 1, 1), 0, GCornerNone);
+      graphics_fill_rect(ctx, GRect(xl_r, y, xr   - xl_r + 1, 1), 0, GCornerNone);
     }
   }
 
-  // Lower taper: narrows to a point
-  int taper_top = lcy + r;
-  int taper_h   = size - 2 * r;
-  for (int y = taper_top; y <= cy + size; y++) {
-    int dy = y - taper_top;
-    int hw = (taper_h > 0) ? (r - (dy * r) / taper_h) : 0;
+  // Lower region: single span tapers from lcy to a point at cy+size
+  int taper_h = size - r;
+  for (int y = lcy; y <= cy + size; y++) {
+    int dy = y - lcy;
+    int hw = (taper_h > 0) ? (full_hw * (taper_h - dy) / taper_h) : 0;
     if (hw < 0) hw = 0;
     graphics_fill_rect(ctx, GRect(cx - hw, y, hw * 2 + 1, 1), 0, GCornerNone);
   }
@@ -227,8 +229,8 @@ static void draw_heart_crack(GContext *ctx, int cx, int cy, int size) {
   graphics_context_set_stroke_color(ctx, GColorBlack);
   graphics_context_set_stroke_width(ctx, 2);
 
-  int top = cy - size / 4;
-  int bot = cy + size / 2;
+  int top = cy + size / 8;
+  int bot = cy + size * 3 / 4;
   int seg_h = (bot - top) / 5;
 
   GPoint pts[] = {
