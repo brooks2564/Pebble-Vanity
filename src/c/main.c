@@ -53,6 +53,11 @@ static int s_badge_frame = 0;
 static int s_badge_delta = 0;
 static AppTimer *s_badge_timer = NULL;
 
+// EKG animation (shows briefly after updates)
+static bool s_ekg_active = false;
+static int s_ekg_frame = 0;
+static AppTimer *s_ekg_timer = NULL;
+
 // Heart color
 static int s_heart_color_idx = 0;
 
@@ -444,6 +449,27 @@ static void draw_badge(GContext *ctx, GRect bounds) {
 }
 
 // ============================================================
+// EKG animation
+// ============================================================
+static void ekg_timer_callback(void *data) {
+  s_ekg_frame++;
+  if (s_ekg_frame >= 80) {  // 8 seconds at 100ms per frame
+    s_ekg_active = false;
+    s_ekg_timer = NULL;
+  } else {
+    s_ekg_timer = app_timer_register(100, ekg_timer_callback, NULL);
+  }
+  layer_mark_dirty(s_canvas_layer);
+}
+
+static void start_ekg(void) {
+  s_ekg_active = true;
+  s_ekg_frame = 0;
+  if (s_ekg_timer) app_timer_cancel(s_ekg_timer);
+  s_ekg_timer = app_timer_register(100, ekg_timer_callback, NULL);
+}
+
+// ============================================================
 // Rank display
 // ============================================================
 static void draw_rank(GContext *ctx, GRect bounds, bool obstructed) {
@@ -506,7 +532,7 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
   heart_size = 40;
 #endif
 
-  int heart_cy = avail_h / 2 + PBL_IF_ROUND_ELSE(8, 10);
+  int heart_cy = avail_h / 2 + PBL_IF_ROUND_ELSE(12, 20);
 
   // Pulse scaling
   int draw_size = heart_size;
@@ -604,10 +630,10 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
   // Rank in bottom-right
   draw_rank(ctx, bounds, obstructed);
 
-  // EKG at bottom
-  if (!obstructed) {
+  // EKG at bottom — only show briefly after updates
+  if (!obstructed && s_ekg_active) {
     int ekg_y = avail_h - PBL_IF_ROUND_ELSE(36, 16);
-    draw_ekg_line(ctx, bounds, ekg_y, s_frame);
+    draw_ekg_line(ctx, bounds, ekg_y, s_ekg_frame);
   }
 
   // Confetti overlay
@@ -730,6 +756,7 @@ static void start_double_pulse(void) {
 // ============================================================
 static void tap_handler(AccelAxisType axis, int32_t direction) {
   start_pulse();
+  start_ekg();
   DictionaryIterator *iter;
   AppMessageResult result = app_message_outbox_begin(&iter);
   if (result == APP_MSG_OK) {
@@ -839,6 +866,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     s_loading_active = false;
     persist_write_int(PERSIST_KEY_HEARTS, s_hearts_count);
     update_hearts_display();
+    start_ekg();
     layer_mark_dirty(s_canvas_layer);
 
     // Pulse on same-count update
@@ -997,6 +1025,7 @@ static void window_unload(Window *window) {
   if (s_loading_timer) { app_timer_cancel(s_loading_timer); s_loading_timer = NULL; }
   if (s_crown_timer) { app_timer_cancel(s_crown_timer); s_crown_timer = NULL; }
   if (s_badge_timer) { app_timer_cancel(s_badge_timer); s_badge_timer = NULL; }
+  if (s_ekg_timer) { app_timer_cancel(s_ekg_timer); s_ekg_timer = NULL; }
 }
 
 // ============================================================
