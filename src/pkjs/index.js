@@ -7,7 +7,7 @@ var STORAGE_APP_ID = 'appStoreId';
 var STORAGE_COLOR = 'heartColor';
 
 function getAppStoreId() {
-  return localStorage.getItem(STORAGE_APP_ID) || '2ef10c51-88ea-4939-8e5b-76a139743d33';
+  return localStorage.getItem(STORAGE_APP_ID) || '18956d5f-1870-4716-b13d-1558cdf26f7a';
 }
 function saveAppStoreId(id) {
   localStorage.setItem(STORAGE_APP_ID, id);

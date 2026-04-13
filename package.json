@@ -7,7 +7,7 @@
   "dependencies": {},
   "pebble": {
     "displayName": "Vanity",
-    "uuid": "2ef10c51-88ea-4939-8e5b-76a139743d33",
+    "uuid": "18956d5f-1870-4716-b13d-1558cdf26f7a",
     "sdkVersion": "3",
     "enableMultiJS": true,
     "targetPlatforms": ["aplite", "basalt", "chalk", "diorite", "emery", "flint", "gabbro"],
