@@ -54,7 +54,6 @@ function fetchHearts() {
         });
 
         // Also fetch rank
-        fetchRank(appId, hearts);
       } else {
         console.log('Vanity: App not found in response');
         Pebble.sendAppMessage({ 'HEARTS': -1 });
@@ -70,46 +69,6 @@ function fetchHearts() {
   xhr.send();
 }
 
-// ============================================================
-// Fetch contest rank from the spring 2026 contest page.
-// The page embeds pre-computed rank values in its RSC payload.
-// ============================================================
-function fetchRank(appId, myHearts) {
-  var xhr = new XMLHttpRequest();
-  xhr.onload = function() {
-    try {
-      var text = this.responseText;
-      // Find this app's entry in the embedded JSON payload
-      var needle = '"id":"' + appId + '"';
-      var idx = text.indexOf(needle);
-      if (idx < 0) {
-        console.log('Vanity: App not in contest data');
-        return;
-      }
-      // "rank":N appears within ~500 chars after the id field
-      var chunk = text.substring(idx, idx + 500);
-      var m = chunk.match(/"rank":(\d+)/);
-      if (m) {
-        var rank = parseInt(m[1], 10);
-        console.log('Vanity: Contest rank is #' + rank);
-        Pebble.sendAppMessage({ 'RANK': rank }, function() {
-          console.log('Vanity: Sent rank');
-        }, function(e) {
-          console.log('Vanity: Rank send failed');
-        });
-      } else {
-        console.log('Vanity: No rank field found near app entry');
-      }
-    } catch (e) {
-      console.log('Vanity: Contest rank error: ' + e.message);
-    }
-  };
-  xhr.onerror = function() {
-    console.log('Vanity: Contest rank network error');
-  };
-  xhr.open('GET', 'https://developer.repebble.com/spring2026contest');
-  xhr.send();
-}
 
 // ============================================================
 // Events

@@ -6,7 +6,6 @@
 
 #define PERSIST_KEY_HEARTS    1
 #define PERSIST_KEY_COLOR     2
-#define PERSIST_KEY_RANK      3
 
 // --- Globals ---
 static Window *s_window;
@@ -23,7 +22,6 @@ static char s_hearts_buf[16];
 
 static int s_hearts_count = -1;
 static int s_prev_hearts = -1;
-static int s_rank = -1;           // store rank, -1 = unknown
 static int s_frame = 0;
 static bool s_bt_connected = true;
 
@@ -518,40 +516,6 @@ static void start_ekg(void) {
   update_layout();  // hide HEARTS label
 }
 
-// ============================================================
-// Rank display
-// ============================================================
-static void draw_rank(GContext *ctx, GRect bounds, bool obstructed) {
-  if (s_rank <= 0 || obstructed) return;
-
-  char rank_buf[12];
-  snprintf(rank_buf, sizeof(rank_buf), "#%d", s_rank);
-
-  GFont font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
-
-#ifdef PBL_ROUND
-  // On round screens, position near bottom-center to avoid corner clip
-  int ry = bounds.size.h - 38;
-  int inset = round_inset_at_y(ry, bounds.size.h, bounds.size.w);
-  // Place right-aligned but within the safe zone
-  int rx = bounds.size.w - inset - 4;
-  GRect text_rect = GRect(rx - 44, ry, 44, 16);
-#else
-  int rx = bounds.size.w - 6;
-  int ry = bounds.size.h - 30;
-  GRect text_rect = GRect(rx - 44, ry, 44, 16);
-#endif
-
-#ifdef PBL_COLOR
-  graphics_context_set_text_color(ctx, GColorDarkGray);
-#else
-  graphics_context_set_text_color(ctx, GColorLightGray);
-#endif
-
-  graphics_draw_text(ctx, rank_buf, font, text_rect,
-                     GTextOverflowModeTrailingEllipsis,
-                     GTextAlignmentRight, NULL);
-}
 
 // ============================================================
 // Canvas update proc
@@ -644,9 +608,6 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
 
   // Floating "+N" badge
   draw_badge(ctx, bounds);
-
-  // Rank in bottom-right
-  draw_rank(ctx, bounds, obstructed);
 
   // EKG replaces the HEARTS label zone when active
   if (!obstructed && s_ekg_active) {
@@ -895,14 +856,6 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     }
   }
 
-  // Rank
-  Tuple *rank_tuple = dict_find(iterator, MESSAGE_KEY_RANK);
-  if (rank_tuple) {
-    s_rank = rank_tuple->value->int32;
-    persist_write_int(PERSIST_KEY_RANK, s_rank);
-    layer_mark_dirty(s_canvas_layer);
-  }
-
   // Heart color
   Tuple *color_tuple = dict_find(iterator, MESSAGE_KEY_HEART_COLOR);
   if (color_tuple) {
@@ -1007,10 +960,6 @@ static void window_load(Window *window) {
     }
 #endif
   }
-  if (persist_exists(PERSIST_KEY_RANK)) {
-    s_rank = persist_read_int(PERSIST_KEY_RANK);
-  }
-
   s_bt_connected = connection_service_peek_pebble_app_connection();
 
   update_time();
