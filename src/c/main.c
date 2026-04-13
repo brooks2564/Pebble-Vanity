@@ -581,7 +581,7 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
   heart_size = 46;
 #endif
 
-  int heart_cy = avail_h / 2 + PBL_IF_ROUND_ELSE(12, 20);
+  int heart_cy = avail_h / 2 + PBL_IF_ROUND_ELSE(12, 14);
 
   // Pulse scaling
   int draw_size = heart_size;
@@ -650,7 +650,7 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
 
   // EKG replaces the HEARTS label zone when active
   if (!obstructed && s_ekg_active) {
-    int ekg_y = avail_h - PBL_IF_ROUND_ELSE(34, 8);
+    int ekg_y = avail_h - PBL_IF_ROUND_ELSE(34, 4);
     draw_ekg_line(ctx, bounds, ekg_y, s_ekg_frame);
   }
 
