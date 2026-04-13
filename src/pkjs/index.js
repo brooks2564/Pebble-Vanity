@@ -71,69 +71,44 @@ function fetchHearts() {
 }
 
 // ============================================================
-// Fetch rank: count all watchfaces with strictly more hearts
-// Scans pages without sort (sort=hearts is unreliable on this API)
+// Fetch contest rank from the spring 2026 contest page.
+// The page embeds pre-computed rank values in its RSC payload.
 // ============================================================
 function fetchRank(appId, myHearts) {
-  var betterCount = 0;
-  var offset = 0;
-  var limit = 100;
-  var page = 0;
-  var maxPages = 20; // up to 2000 apps
-
-  function sendRank() {
-    var rank = betterCount + 1;
-    console.log('Vanity: Rank is #' + rank + ' (' + betterCount + ' apps with more hearts)');
-    Pebble.sendAppMessage({ 'RANK': rank }, function() {
-      console.log('Vanity: Sent rank');
-    }, function(e) {
-      console.log('Vanity: Rank send failed');
-    });
-  }
-
-  function fetchPage() {
-    if (page >= maxPages) {
-      sendRank();
-      return;
-    }
-
-    var url = 'https://appstore-api.repebble.com/api/v1/apps/collection/all/watchfaces' +
-              '?limit=' + limit + '&offset=' + offset;
-
-    var xhr = new XMLHttpRequest();
-    xhr.onload = function() {
-      try {
-        var json = JSON.parse(this.responseText);
-        if (!json.data || json.data.length === 0) {
-          sendRank();
-          return;
-        }
-
-        for (var i = 0; i < json.data.length; i++) {
-          var app = json.data[i];
-          if (app.id !== appId && (app.hearts || 0) > myHearts) {
-            betterCount++;
-          }
-        }
-
-        offset += limit;
-        page++;
-        fetchPage();
-
-      } catch (e) {
-        console.log('Vanity: Rank parse error: ' + e.message);
-        sendRank();
+  var xhr = new XMLHttpRequest();
+  xhr.onload = function() {
+    try {
+      var text = this.responseText;
+      // Find this app's entry in the embedded JSON payload
+      var needle = '"id":"' + appId + '"';
+      var idx = text.indexOf(needle);
+      if (idx < 0) {
+        console.log('Vanity: App not in contest data');
+        return;
       }
-    };
-    xhr.onerror = function() {
-      console.log('Vanity: Rank network error');
-      sendRank();
-    };
-    xhr.open('GET', url);
-    xhr.send();
-  }
-
-  fetchPage();
+      // "rank":N appears within ~500 chars after the id field
+      var chunk = text.substring(idx, idx + 500);
+      var m = chunk.match(/"rank":(\d+)/);
+      if (m) {
+        var rank = parseInt(m[1], 10);
+        console.log('Vanity: Contest rank is #' + rank);
+        Pebble.sendAppMessage({ 'RANK': rank }, function() {
+          console.log('Vanity: Sent rank');
+        }, function(e) {
+          console.log('Vanity: Rank send failed');
+        });
+      } else {
+        console.log('Vanity: No rank field found near app entry');
+      }
+    } catch (e) {
+      console.log('Vanity: Contest rank error: ' + e.message);
+    }
+  };
+  xhr.onerror = function() {
+    console.log('Vanity: Contest rank network error');
+  };
+  xhr.open('GET', 'https://developer.repebble.com/spring2026contest');
+  xhr.send();
 }
 
 // ============================================================
