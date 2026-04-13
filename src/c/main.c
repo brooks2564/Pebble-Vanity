@@ -145,38 +145,81 @@ static int get_ekg_speed(void) {
 }
 
 // ============================================================
-// Heart shape drawing
+// Heart shape drawing (scanline-based, proper dip at top)
+// cy = top of the heart, size = total height
+// Lobe radius r = size/4, lobe centers at (cx±r, cy+r)
 // ============================================================
+static int heart_isqrt(int n) {
+  if (n <= 0) return 0;
+  int s = 1;
+  while (s * s <= n) s++;
+  return s - 1;
+}
+
 static void draw_heart_filled(GContext *ctx, int cx, int cy, int size) {
-  int r = size / 3;
-  int half = (r * 3) / 2;
+  int r = size / 4;
+  int lcy = cy + r;  // y of lobe centers
 
-  graphics_fill_circle(ctx, GPoint(cx - r + 1, cy - r / 3), r);
-  graphics_fill_circle(ctx, GPoint(cx + r - 1, cy - r / 3), r);
-
-  for (int dy = 0; dy <= size - r; dy++) {
-    int w = half - (dy * half) / (size - r);
-    if (w < 1) w = 1;
-    graphics_draw_line(ctx, GPoint(cx - w, cy + dy), GPoint(cx + w, cy + dy));
+  // Upper region: two lobes with notch at top
+  for (int y = cy; y <= lcy + r; y++) {
+    int dy = y - lcy;
+    int sq = r * r - dy * dy;
+    int hw = heart_isqrt(sq);
+    int xl_left  = cx - r - hw;
+    int xr_left  = cx - r + hw;
+    int xl_right = cx + r - hw;
+    int xr_right = cx + r + hw;
+    if (xr_left >= xl_right) {
+      // Lobes merged — one span
+      graphics_draw_line(ctx, GPoint(xl_left, y), GPoint(xr_right, y));
+    } else {
+      graphics_draw_line(ctx, GPoint(xl_left, y),  GPoint(xr_left, y));
+      graphics_draw_line(ctx, GPoint(xl_right, y), GPoint(xr_right, y));
+    }
   }
 
-  for (int dy = -r / 3; dy <= r / 4; dy++) {
-    int cw = half - 1;
-    graphics_draw_line(ctx, GPoint(cx - cw, cy + dy),
-                       GPoint(cx + cw, cy + dy));
+  // Lower taper: narrows to a point
+  int taper_top = lcy + r;
+  int taper_h   = size - 2 * r;
+  for (int y = taper_top; y <= cy + size; y++) {
+    int dy = y - taper_top;
+    int hw = (taper_h > 0) ? (r - (dy * r) / taper_h) : 0;
+    if (hw < 0) hw = 0;
+    graphics_draw_line(ctx, GPoint(cx - hw, y), GPoint(cx + hw, y));
   }
 }
 
-static void draw_heart_outline(GContext *ctx, int cx, int cy, int size) {
-  int r = size / 3;
-  int half = (r * 3) / 2;
+__attribute__((unused)) static void draw_heart_outline(GContext *ctx, int cx, int cy, int size) {
+  int r = size / 4;
+  int lcy = cy + r;
 
-  graphics_draw_circle(ctx, GPoint(cx - r + 1, cy - r / 3), r);
-  graphics_draw_circle(ctx, GPoint(cx + r - 1, cy - r / 3), r);
+  for (int y = cy; y <= lcy + r; y++) {
+    int dy = y - lcy;
+    int sq = r * r - dy * dy;
+    int hw = heart_isqrt(sq);
+    int xl_left  = cx - r - hw;
+    int xr_left  = cx - r + hw;
+    int xl_right = cx + r - hw;
+    int xr_right = cx + r + hw;
+    if (xr_left >= xl_right) {
+      graphics_draw_pixel(ctx, GPoint(xl_left,  y));
+      graphics_draw_pixel(ctx, GPoint(xr_right, y));
+    } else {
+      graphics_draw_pixel(ctx, GPoint(xl_left,  y));
+      graphics_draw_pixel(ctx, GPoint(xr_left,  y));
+      graphics_draw_pixel(ctx, GPoint(xl_right, y));
+      graphics_draw_pixel(ctx, GPoint(xr_right, y));
+    }
+  }
 
-  for (int i = 0; i < 2; i++) {
-    int x1 = (i == 0) ? (cx - half) : (cx + half);
-    graphics_draw_line(ctx, GPoint(x1, cy), GPoint(cx, cy + size - r));
+  int taper_top = lcy + r;
+  int taper_h   = size - 2 * r;
+  for (int y = taper_top; y <= cy + size; y++) {
+    int dy = y - taper_top;
+    int hw = (taper_h > 0) ? (r - (dy * r) / taper_h) : 0;
+    if (hw < 0) hw = 0;
+    graphics_draw_pixel(ctx, GPoint(cx - hw, y));
+    if (hw > 0) graphics_draw_pixel(ctx, GPoint(cx + hw, y));
   }
 }
 
@@ -451,11 +494,14 @@ static void draw_badge(GContext *ctx, GRect bounds) {
 // ============================================================
 // EKG animation
 // ============================================================
+static void update_layout(void);  // forward declaration
+
 static void ekg_timer_callback(void *data) {
   s_ekg_frame++;
   if (s_ekg_frame >= 80) {  // 8 seconds at 100ms per frame
     s_ekg_active = false;
     s_ekg_timer = NULL;
+    update_layout();  // restore HEARTS label
   } else {
     s_ekg_timer = app_timer_register(100, ekg_timer_callback, NULL);
   }
@@ -467,6 +513,7 @@ static void start_ekg(void) {
   s_ekg_frame = 0;
   if (s_ekg_timer) app_timer_cancel(s_ekg_timer);
   s_ekg_timer = app_timer_register(100, ekg_timer_callback, NULL);
+  update_layout();  // hide HEARTS label
 }
 
 // ============================================================
@@ -544,7 +591,8 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
     }
   }
 
-  int heart_top_y = heart_cy - draw_size / 3;
+  // cy = top of heart; lobe centers at cy + size/4
+  int heart_top_y = heart_cy - draw_size / 4;
 
   if (!s_bt_connected) {
     // --- DISCONNECTED: Gray cracked heart ---
@@ -559,55 +607,23 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
 #endif
     draw_heart_crack(ctx, heart_cx, heart_top_y, draw_size);
 
-  } else if (s_loading_active && s_hearts_count < 0) {
-    // --- LOADING: Heart outline filling ---
-#ifdef PBL_COLOR
-    graphics_context_set_stroke_color(ctx, PALETTES[s_heart_color_idx].main);
-#else
-    graphics_context_set_stroke_color(ctx, GColorWhite);
-#endif
-    graphics_context_set_stroke_width(ctx, 2);
-    draw_heart_outline(ctx, heart_cx, heart_top_y, draw_size);
-
-    int fill_h = (s_loading_frame * draw_size) / 20;
-    if (fill_h > draw_size) fill_h = draw_size;
-    int r = draw_size / 3;
-    int half = (r * 3) / 2;
-
-#ifdef PBL_COLOR
-    graphics_context_set_fill_color(ctx, PALETTES[s_heart_color_idx].main);
-#else
-    graphics_context_set_fill_color(ctx, GColorWhite);
-#endif
-
-    int bot = heart_top_y + draw_size - r;
-    int fill_start = bot - fill_h;
-    for (int y = bot; y >= fill_start && y >= heart_top_y - r/3; y--) {
-      int dy = y - heart_top_y;
-      int w;
-      if (dy >= 0) {
-        w = half - (dy * half) / (draw_size - r);
-      } else {
-        w = half - 2;
-      }
-      if (w < 1) w = 1;
-      graphics_draw_line(ctx, GPoint(heart_cx - w, y), GPoint(heart_cx + w, y));
-    }
-
   } else {
-    // --- NORMAL: Colored heart ---
+    // --- NORMAL / LOADING: Colored filled heart ---
 #ifdef PBL_COLOR
     graphics_context_set_fill_color(ctx, PALETTES[s_heart_color_idx].dark);
     draw_heart_filled(ctx, heart_cx + 2, heart_top_y + 2, draw_size);
 
-    graphics_context_set_fill_color(ctx, PALETTES[s_heart_color_idx].main);
+    graphics_context_set_fill_color(ctx,
+      s_loading_active ? GColorDarkGray : PALETTES[s_heart_color_idx].main);
     draw_heart_filled(ctx, heart_cx, heart_top_y, draw_size);
 
-    graphics_context_set_fill_color(ctx, PALETTES[s_heart_color_idx].highlight);
-    int hl_r = draw_size / 8;
-    if (hl_r < 2) hl_r = 2;
-    graphics_fill_circle(ctx,
-      GPoint(heart_cx - draw_size / 5, heart_top_y - draw_size / 8), hl_r);
+    if (!s_loading_active) {
+      graphics_context_set_fill_color(ctx, PALETTES[s_heart_color_idx].highlight);
+      int hl_r = draw_size / 8;
+      if (hl_r < 2) hl_r = 2;
+      graphics_fill_circle(ctx,
+        GPoint(heart_cx - draw_size / 4, heart_top_y + draw_size / 8), hl_r);
+    }
 #else
     graphics_context_set_fill_color(ctx, GColorWhite);
     draw_heart_filled(ctx, heart_cx, heart_top_y, draw_size);
@@ -630,9 +646,9 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
   // Rank in bottom-right
   draw_rank(ctx, bounds, obstructed);
 
-  // EKG at bottom — only show briefly after updates
+  // EKG replaces the HEARTS label zone when active
   if (!obstructed && s_ekg_active) {
-    int ekg_y = avail_h - PBL_IF_ROUND_ELSE(36, 16);
+    int ekg_y = avail_h - PBL_IF_ROUND_ELSE(34, 22);
     draw_ekg_line(ctx, bounds, ekg_y, s_ekg_frame);
   }
 
@@ -697,7 +713,7 @@ static void update_layout(void) {
                   GRect(0, label_y, w, 18));
 #endif
 
-  layer_set_hidden(text_layer_get_layer(s_label_layer), obstructed);
+  layer_set_hidden(text_layer_get_layer(s_label_layer), obstructed || s_ekg_active);
 }
 
 // ============================================================
