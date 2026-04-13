@@ -38,8 +38,14 @@ function fetchHearts() {
   xhr.onload = function() {
     try {
       var json = JSON.parse(this.responseText);
-      if (json.data && json.data.length > 0) {
-        var hearts = json.data[0].hearts || 0;
+      console.log('Vanity: Raw response: ' + this.responseText.substring(0, 200));
+      // API may return data as array or direct object
+      var entry = json.data;
+      if (entry && typeof entry.length === 'number' && entry.length > 0) {
+        entry = entry[0];
+      }
+      if (entry && typeof entry === 'object') {
+        var hearts = entry.hearts || entry.hearts_count || entry.heart_count || 0;
         console.log('Vanity: Got ' + hearts + ' hearts');
         Pebble.sendAppMessage({ 'HEARTS': hearts }, function() {
           console.log('Vanity: Sent hearts');
@@ -50,7 +56,7 @@ function fetchHearts() {
         // Also fetch rank
         fetchRank(appId, hearts);
       } else {
-        console.log('Vanity: App not found');
+        console.log('Vanity: App not found in response');
         Pebble.sendAppMessage({ 'HEARTS': -1 });
       }
     } catch (e) {
