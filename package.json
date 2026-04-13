@@ -20,6 +20,15 @@
       "RANK": 4
     },
     "capabilities": [],
-    "resources": { "media": [] }
+    "resources": {
+      "media": [
+        {
+          "type": "png",
+          "name": "MENU_ICON",
+          "file": "images/menu_icon.png",
+          "menuIcon": true
+        }
+      ]
+    }
   }
 }
