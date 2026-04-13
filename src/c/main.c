@@ -161,6 +161,7 @@ static void draw_heart_filled(GContext *ctx, int cx, int cy, int size) {
   int lcy = cy + r;  // y of lobe centers
 
   // Upper region: two lobes with notch at top
+  // Uses fill color (via fill_rect) so callers just set fill color
   for (int y = cy; y <= lcy + r; y++) {
     int dy = y - lcy;
     int sq = r * r - dy * dy;
@@ -170,11 +171,10 @@ static void draw_heart_filled(GContext *ctx, int cx, int cy, int size) {
     int xl_right = cx + r - hw;
     int xr_right = cx + r + hw;
     if (xr_left >= xl_right) {
-      // Lobes merged — one span
-      graphics_draw_line(ctx, GPoint(xl_left, y), GPoint(xr_right, y));
+      graphics_fill_rect(ctx, GRect(xl_left, y, xr_right - xl_left + 1, 1), 0, GCornerNone);
     } else {
-      graphics_draw_line(ctx, GPoint(xl_left, y),  GPoint(xr_left, y));
-      graphics_draw_line(ctx, GPoint(xl_right, y), GPoint(xr_right, y));
+      graphics_fill_rect(ctx, GRect(xl_left,  y, xr_left  - xl_left  + 1, 1), 0, GCornerNone);
+      graphics_fill_rect(ctx, GRect(xl_right, y, xr_right - xl_right + 1, 1), 0, GCornerNone);
     }
   }
 
@@ -185,7 +185,7 @@ static void draw_heart_filled(GContext *ctx, int cx, int cy, int size) {
     int dy = y - taper_top;
     int hw = (taper_h > 0) ? (r - (dy * r) / taper_h) : 0;
     if (hw < 0) hw = 0;
-    graphics_draw_line(ctx, GPoint(cx - hw, y), GPoint(cx + hw, y));
+    graphics_fill_rect(ctx, GRect(cx - hw, y, hw * 2 + 1, 1), 0, GCornerNone);
   }
 }
 
