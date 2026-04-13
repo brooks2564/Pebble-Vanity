@@ -160,7 +160,7 @@ static void draw_heart_filled(GContext *ctx, int cx, int cy, int size) {
   // r = lobe radius, off = lobe center x-offset from cx
   // Lobes close within ~3px of the top giving a clean dip
   int r   = size / 3;
-  int off = size / 6;
+  int off = size / 3;  // = r; keeps lobes visibly separate for the full upper half
   int lcy = cy + r;       // y of lobe centers (= widest point)
   int full_hw = off + r;  // half-width at lcy
 
