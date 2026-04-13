@@ -1,0 +1,25 @@
+{
+  "name": "vanity",
+  "author": "Brooman Inks",
+  "version": "1.0.0",
+  "keywords": ["pebble-app"],
+  "private": true,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "Vanity",
+    "uuid": "2ef10c51-88ea-4939-8e5b-76a139743d33",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": ["aplite", "basalt", "chalk", "diorite", "emery", "flint", "gabbro"],
+    "watchapp": { "watchface": true },
+    "messageKeys": {
+      "HEARTS": 0,
+      "REQUEST_HEARTS": 1,
+      "APP_STORE_ID": 2,
+      "HEART_COLOR": 3,
+      "RANK": 4
+    },
+    "capabilities": [],
+    "resources": { "media": [] }
+  }
+}
