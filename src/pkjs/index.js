@@ -71,70 +71,63 @@ function fetchHearts() {
 }
 
 // ============================================================
-// Fetch rank among all watchfaces sorted by hearts
-// Walk pages until we find our app or pass our heart count
+// Fetch rank: count all watchfaces with strictly more hearts
+// Scans pages without sort (sort=hearts is unreliable on this API)
 // ============================================================
 function fetchRank(appId, myHearts) {
-  var rank = 0;
+  var betterCount = 0;
   var offset = 0;
   var limit = 100;
-  var found = false;
-  var maxPages = 50; // safety limit: 5000 apps max
   var page = 0;
+  var maxPages = 20; // up to 2000 apps
+
+  function sendRank() {
+    var rank = betterCount + 1;
+    console.log('Vanity: Rank is #' + rank + ' (' + betterCount + ' apps with more hearts)');
+    Pebble.sendAppMessage({ 'RANK': rank }, function() {
+      console.log('Vanity: Sent rank');
+    }, function(e) {
+      console.log('Vanity: Rank send failed');
+    });
+  }
 
   function fetchPage() {
     if (page >= maxPages) {
-      console.log('Vanity: Rank search exceeded max pages');
+      sendRank();
       return;
     }
 
     var url = 'https://appstore-api.repebble.com/api/v1/apps/collection/all/watchfaces' +
-              '?sort=hearts&limit=' + limit + '&offset=' + offset;
+              '?limit=' + limit + '&offset=' + offset;
 
     var xhr = new XMLHttpRequest();
     xhr.onload = function() {
       try {
         var json = JSON.parse(this.responseText);
         if (!json.data || json.data.length === 0) {
-          // Ran out of apps without finding ours
-          console.log('Vanity: App not found in rankings');
+          sendRank();
           return;
         }
 
         for (var i = 0; i < json.data.length; i++) {
-          rank++;
-          if (json.data[i].id === appId) {
-            found = true;
-            console.log('Vanity: Rank is #' + rank);
-            Pebble.sendAppMessage({ 'RANK': rank }, function() {
-              console.log('Vanity: Sent rank');
-            }, function(e) {
-              console.log('Vanity: Rank send failed');
-            });
-            return;
-          }
-
-          // Optimization: if this app's hearts are less than ours,
-          // something's wrong (list is sorted desc), keep going
-          // If hearts drop well below ours and we haven't found it,
-          // the app might be unlisted
-          if (json.data[i].hearts < myHearts - 1 && rank > 10) {
-            // We should have found it by now if sorted correctly
-            // Keep going a bit more but don't go forever
+          var app = json.data[i];
+          if (app.id !== appId && (app.hearts || 0) > myHearts) {
+            betterCount++;
           }
         }
 
-        // Next page
         offset += limit;
         page++;
         fetchPage();
 
       } catch (e) {
         console.log('Vanity: Rank parse error: ' + e.message);
+        sendRank();
       }
     };
     xhr.onerror = function() {
       console.log('Vanity: Rank network error');
+      sendRank();
     };
     xhr.open('GET', url);
     xhr.send();

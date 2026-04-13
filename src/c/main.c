@@ -673,7 +673,7 @@ static void update_layout(void) {
 #if defined(PBL_ROUND)
   time_y = (avail_h > 160) ? 16 : 8;
   date_y = time_y + 48;
-  hearts_y = avail_h / 2 + 2;
+  hearts_y = avail_h / 2 + 4;
   label_y = obstructed ? (avail_h - 26) : (avail_h - 34);
 #elif PBL_DISPLAY_HEIGHT == 228
   time_y = (avail_h > 200) ? 14 : 6;
@@ -683,7 +683,7 @@ static void update_layout(void) {
 #else
   time_y = (avail_h > 150) ? 6 : 2;
   date_y = time_y + 44;
-  hearts_y = avail_h / 2 + 3;
+  hearts_y = avail_h / 2 + 5;
   label_y = obstructed ? (avail_h - 20) : (avail_h - 28);
 #endif
 
