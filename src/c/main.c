@@ -574,14 +574,14 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
   int heart_size;
 
 #if defined(PBL_ROUND)
-  heart_size = 40;  // slightly smaller on round to avoid edge clipping
-#elif PBL_DISPLAY_HEIGHT == 228
-  heart_size = 52;
-#else
   heart_size = 46;
+#elif PBL_DISPLAY_HEIGHT == 228
+  heart_size = 62;
+#else
+  heart_size = 54;
 #endif
 
-  int heart_cy = avail_h / 2 + PBL_IF_ROUND_ELSE(12, 14);
+  int heart_cy = avail_h / 2 + PBL_IF_ROUND_ELSE(10, 12);
 
   // Pulse scaling
   int draw_size = heart_size;
@@ -678,12 +678,12 @@ static void update_layout(void) {
 #elif PBL_DISPLAY_HEIGHT == 228
   time_y = (avail_h > 200) ? 14 : 6;
   date_y = time_y + 50;
-  hearts_y = avail_h / 2 + 4;
+  hearts_y = avail_h / 2 + 3;
   label_y = obstructed ? (avail_h - 22) : (avail_h - 34);
 #else
   time_y = (avail_h > 150) ? 6 : 2;
   date_y = time_y + 44;
-  hearts_y = avail_h / 2 - 2;
+  hearts_y = avail_h / 2 + 3;
   label_y = obstructed ? (avail_h - 20) : (avail_h - 28);
 #endif
 
@@ -950,7 +950,7 @@ static void window_load(Window *window) {
 
   GFont time_font = fonts_get_system_font(FONT_KEY_LECO_42_NUMBERS);
   GFont date_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
-  GFont hearts_font = fonts_get_system_font(FONT_KEY_LECO_36_BOLD_NUMBERS);
+  GFont hearts_font = fonts_get_system_font(FONT_KEY_LECO_32_BOLD_NUMBERS);
   GFont label_font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
 
   s_time_layer = text_layer_create(GRect(0, 0, bounds.size.w, 50));
